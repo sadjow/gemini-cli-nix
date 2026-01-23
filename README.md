@@ -94,7 +94,7 @@ nix run github:sadjow/gemini-cli-nix?ref=v0
 For faster installs without building from source:
 
 ```bash
-cachix use gemini-cli
+cachix use gemini-cli-nix
 ```
 
 Or add to your Nix configuration:
@@ -102,8 +102,8 @@ Or add to your Nix configuration:
 ```nix
 {
   nix.settings = {
-    substituters = [ "https://gemini-cli.cachix.org" ];
-    trusted-public-keys = [ "gemini-cli.cachix.org-1:PLACEHOLDER_KEY" ];
+    substituters = [ "https://gemini-cli-nix.cachix.org" ];
+    trusted-public-keys = [ "gemini-cli-nix.cachix.org-1:DzAIhrYktyRtR1OO0KjyYEKR5hjwsdZU2NwHlEBCcvI=" ];
   };
 }
 ```

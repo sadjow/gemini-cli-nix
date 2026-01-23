@@ -20,16 +20,6 @@ The automated update workflow requires specific GitHub Actions permissions.
    - Require status checks to pass
    - Allow auto-merge
 
-### Cachix Setup (Optional)
-
-To enable binary caching with Cachix:
-
-1. Create a Cachix cache at https://cachix.org
-2. Go to **Settings** > **Secrets and variables** > **Actions**
-3. Add a repository secret:
-   - Name: `CACHIX_AUTH_TOKEN`
-   - Value: Your Cachix authentication token
-
 ### Troubleshooting
 
 If the update workflow fails with permission errors:

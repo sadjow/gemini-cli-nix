@@ -1,48 +1,56 @@
-name: Build
-
+name: "Build and Cache"
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
   workflow_dispatch:
-  workflow_call:
+  workflow_run:
+    workflows: ["Update Claude Code Version"]
+    types:
+      - completed
+    branches: [ main ]
 
 jobs:
   build:
+    # Only run if not triggered by workflow_run or if the workflow succeeded
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        package: [gemini-cli, gemini-cli-bun]
-    runs-on: ${{ matrix.os }}
-
+        variant: [claude-code, claude-code-bun]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v24
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-            sandbox = false
+    - uses: cachix/install-nix-action@v31
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+          access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      env:
+        NIX_FIRST_BUILD_UID: 400
 
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v14
-        with:
-          name: gemini-cli
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          skipPush: ${{ github.event_name == 'pull_request' }}
+    - uses: cachix/cachix-action@v15
+      if: github.ref == 'refs/heads/main'
+      with:
+        name: claude-code
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
-      - name: Build ${{ matrix.package }}
-        run: nix build .#${{ matrix.package }}
+    - name: Build ${{ matrix.variant }}
+      run: |
+        nix build .#${{ matrix.variant }}
 
-      - name: Test version
-        run: |
-          if [ "${{ matrix.package }}" == "gemini-cli" ]; then
-            ./result/bin/gemini --version
-          else
-            ./result/bin/gemini-bun --version
-          fi
+    - name: Push to Cachix
+      if: github.ref == 'refs/heads/main'
+      run: |
+        nix build .#${{ matrix.variant }} --json | jq -r '.[].outputs.out' | cachix push claude-code
+
+    - name: Test ${{ matrix.variant }}
+      run: |
+        if [ "${{ matrix.variant }}" = "claude-code-bun" ]; then
+          ./result/bin/claude-bun --version
+        else
+          ./result/bin/claude --version
+        fi
