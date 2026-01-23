@@ -1,0 +1,52 @@
+name: Test PR
+
+on:
+  pull_request:
+    paths:
+      - 'package.nix'
+      - 'flake.nix'
+      - 'flake.lock'
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        package: [gemini-cli, gemini-cli-bun]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v24
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+            sandbox = false
+
+      - name: Build ${{ matrix.package }}
+        run: nix build .#${{ matrix.package }}
+
+      - name: Verify binary exists
+        run: |
+          if [ "${{ matrix.package }}" == "gemini-cli" ]; then
+            test -x ./result/bin/gemini
+          else
+            test -x ./result/bin/gemini-bun
+          fi
+
+      - name: Verify module directory exists
+        run: |
+          test -d ./result/lib/node_modules/@google/gemini-cli
+
+      - name: Test version output
+        run: |
+          if [ "${{ matrix.package }}" == "gemini-cli" ]; then
+            ./result/bin/gemini --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
+          else
+            ./result/bin/gemini-bun --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
+          fi
