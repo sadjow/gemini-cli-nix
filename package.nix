@@ -78,7 +78,6 @@ stdenv.mkDerivation {
     cat > $out/bin/${selected.binName} << 'WRAPPER_EOF'
 #!${bash}/bin/bash
 export GEMINI_EXECUTABLE_PATH="$HOME/.local/bin/${selected.binName}"
-export CI_NIX=1
 ${lib.optionalString disableTelemetry "export GEMINI_TELEMETRY_ENABLED=false"}
 exec "$out/bin/gemini-raw" "$@"
 WRAPPER_EOF
@@ -97,7 +96,6 @@ WRAPPER_EOF
     cat > $out/bin/${selected.binName} << 'WRAPPER_EOF'
 #!${bash}/bin/bash
 export GEMINI_EXECUTABLE_PATH="$HOME/.local/bin/${selected.binName}"
-export CI_NIX=1
 ${lib.optionalString disableTelemetry "export GEMINI_TELEMETRY_ENABLED=false"}
 
 export _GEMINI_NPM_WRAPPER="$(mktemp -d)/npm"
