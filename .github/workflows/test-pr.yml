@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-15-intel]
-        package: [gemini-cli, gemini-cli-node, gemini-cli-bun]
+        package: [gemini-cli, gemini-cli-native, gemini-cli-bun]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -36,11 +36,11 @@ jobs:
           case "${{ matrix.package }}" in
             gemini-cli)
               test -x ./result/bin/gemini
-              test -x ./result/bin/gemini-raw
-              ;;
-            gemini-cli-node)
-              test -x ./result/bin/gemini-node
               test -f ./result/lib/gemini.js
+              ;;
+            gemini-cli-native)
+              test -x ./result/bin/gemini
+              test -x ./result/bin/gemini-raw
               ;;
             gemini-cli-bun)
               test -x ./result/bin/gemini-bun
@@ -54,8 +54,8 @@ jobs:
             gemini-cli)
               ./result/bin/gemini --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
               ;;
-            gemini-cli-node)
-              ./result/bin/gemini-node --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
+            gemini-cli-native)
+              ./result/bin/gemini --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
               ;;
             gemini-cli-bun)
               ./result/bin/gemini-bun --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'

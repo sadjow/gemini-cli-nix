@@ -11,9 +11,9 @@
 , nodejs_22
 , bun
 , bash
-, runtime ? "native"
+, runtime ? "node"
 , nativeBinName ? "gemini"
-, nodeBinName ? "gemini-node"
+, nodeBinName ? "gemini"
 , bunBinName ? "gemini-bun"
 , disableTelemetry ? false
 }:
@@ -49,8 +49,7 @@ let
   selected = runtimeConfig.${runtime};
 in
 stdenv.mkDerivation {
-  pname = if runtime == "native" then "gemini-cli"
-          else if runtime == "node" then "gemini-cli-node"
+  pname = if runtime == "node" then "gemini-cli"
           else "gemini-cli-${runtime}";
   inherit version;
 

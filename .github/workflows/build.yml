@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-15-intel]
-        variant: [gemini-cli, gemini-cli-node, gemini-cli-bun]
+        variant: [gemini-cli, gemini-cli-native, gemini-cli-bun]
     steps:
     - uses: actions/checkout@v4
 
@@ -53,8 +53,8 @@ jobs:
           gemini-cli)
             ./result/bin/gemini --version
             ;;
-          gemini-cli-node)
-            ./result/bin/gemini-node --version
+          gemini-cli-native)
+            ./result/bin/gemini --version
             ;;
           gemini-cli-bun)
             ./result/bin/gemini-bun --version
