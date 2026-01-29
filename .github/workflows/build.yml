@@ -16,8 +16,9 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm64, macos-latest, macos-13]
         variant: [gemini-cli, gemini-cli-node, gemini-cli-bun]
     steps:
     - uses: actions/checkout@v4

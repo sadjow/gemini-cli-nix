@@ -10,8 +10,9 @@ on:
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm64, macos-latest, macos-13]
         package: [gemini-cli, gemini-cli-node, gemini-cli-bun]
     runs-on: ${{ matrix.os }}
 
