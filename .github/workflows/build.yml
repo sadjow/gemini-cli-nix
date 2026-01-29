@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        variant: [gemini-cli, gemini-cli-bun]
+        variant: [gemini-cli, gemini-cli-node, gemini-cli-bun]
     steps:
     - uses: actions/checkout@v4
 
@@ -48,8 +48,14 @@ jobs:
 
     - name: Test ${{ matrix.variant }}
       run: |
-        if [ "${{ matrix.variant }}" = "gemini-cli-bun" ]; then
-          ./result/bin/gemini-bun --version
-        else
-          ./result/bin/gemini --version
-        fi
+        case "${{ matrix.variant }}" in
+          gemini-cli)
+            ./result/bin/gemini --version
+            ;;
+          gemini-cli-node)
+            ./result/bin/gemini-node --version
+            ;;
+          gemini-cli-bun)
+            ./result/bin/gemini-bun --version
+            ;;
+        esac

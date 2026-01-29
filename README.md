@@ -4,12 +4,12 @@ Nix flake for [Gemini CLI](https://geminicli.com/) - Google's open-source AI age
 
 ## Features
 
+- **Native binary**: Compiled standalone executable with Bun embedded (~76MB)
 - **Always up-to-date**: Hourly automated updates via GitHub Actions
-- **Dual runtime support**: Node.js 22 LTS and Bun
-- **Sandbox-compatible**: Uses pre-bundled release from GitHub (no network during build)
+- **Three runtime options**: Native (default), Node.js 22, or Bun
+- **Sandbox-compatible**: No network access during build
 - **Binary caching**: Fast installs via Cachix (optional)
 - **Version pinning**: Pin to specific versions, major versions, or latest
-- **Nix-managed updates**: npm interceptor informs users updates are managed by Nix
 
 ## Quick Start
 
@@ -49,12 +49,19 @@ nix profile install github:sadjow/gemini-cli-nix
 
 ## Runtime Selection
 
-Two runtimes are available:
+Three runtimes are available:
 
-| Package | Binary | Runtime | Description |
-|---------|--------|---------|-------------|
-| `gemini-cli` | `gemini` | Node.js 22 | Default, most compatible |
-| `gemini-cli-bun` | `gemini-bun` | Bun | Faster startup |
+| Package | Binary | Size | Description |
+|---------|--------|------|-------------|
+| `gemini-cli` | `gemini` | ~76MB | **Default** - Native compiled binary, no runtime deps |
+| `gemini-cli-node` | `gemini-node` | ~23MB + Node | Node.js 22 LTS runtime |
+| `gemini-cli-bun` | `gemini-bun` | ~23MB + Bun | Bun runtime |
+
+### Using Node.js runtime
+
+```bash
+nix run github:sadjow/gemini-cli-nix#gemini-cli-node
+```
 
 ### Using Bun runtime
 
@@ -62,10 +69,12 @@ Two runtimes are available:
 nix run github:sadjow/gemini-cli-nix#gemini-cli-bun
 ```
 
-Or install:
+### Install multiple runtimes
 
 ```bash
-nix profile install github:sadjow/gemini-cli-nix#gemini-cli-bun
+nix profile install github:sadjow/gemini-cli-nix              # native -> gemini
+nix profile install github:sadjow/gemini-cli-nix#gemini-cli-node  # node -> gemini-node
+nix profile install github:sadjow/gemini-cli-nix#gemini-cli-bun   # bun -> gemini-bun
 ```
 
 ## Version Pinning
@@ -110,13 +119,15 @@ nix run github:sadjow/gemini-cli-nix?ref=v0
 You can customize binary names when building:
 
 ```nix
-pkgs.gemini-cli.override { nodeBinName = "gem"; }
+pkgs.gemini-cli.override { nativeBinName = "gem"; }
+pkgs.gemini-cli-node.override { nodeBinName = "gem-node"; }
 pkgs.gemini-cli-bun.override { bunBinName = "gem-bun"; }
 ```
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `nodeBinName` | `gemini` | Binary name for Node.js runtime |
+| `nativeBinName` | `gemini` | Binary name for native runtime |
+| `nodeBinName` | `gemini-node` | Binary name for Node.js runtime |
 | `bunBinName` | `gemini-bun` | Binary name for Bun runtime |
 | `disableTelemetry` | `false` | Disable telemetry when `true` |
 
@@ -191,8 +202,9 @@ ln -sf $(which gemini) ~/.local/bin/gemini
 
 | Feature | npm global | Homebrew | This Flake |
 |---------|------------|----------|------------|
+| **Native Binary** | No | No | **Yes (default)** |
 | **Latest Version** | Manual | Delayed | Hourly checks |
-| **Runtime Options** | Per Node install | Node.js only | Node.js 22, Bun |
+| **Runtime Options** | Per Node install | Node.js only | Native, Node.js, Bun |
 | **Survives Node Switch** | Lost on switch | Always available | Always available |
 | **Binary Cache** | None | Bottles | Cachix |
 | **Declarative Config** | No | Limited | Yes |
@@ -207,6 +219,13 @@ ln -sf $(which gemini) ~/.local/bin/gemini
 ```bash
 nix build
 ./result/bin/gemini --version
+```
+
+### Build Node.js variant
+
+```bash
+nix build .#gemini-cli-node
+./result/bin/gemini-node --version
 ```
 
 ### Build Bun variant
@@ -253,11 +272,15 @@ gemini-cli-nix/
 
 ## Technical Details
 
-This package uses the pre-bundled `gemini.js` from [GitHub Releases](https://github.com/google-gemini/gemini-cli/releases) instead of fetching from npm. This provides:
+### Native Binary (Default)
 
-- **Sandbox-compatible builds** (no network access during build)
-- **Faster builds** (single file download)
-- **Simpler package** (no npm install step)
+The native package compiles `gemini.js` using `bun build --compile`, creating a standalone executable with the Bun runtime embedded. This is similar to how Claude Code distributes its native binary.
+
+### Node.js / Bun Variants
+
+These variants use the pre-bundled `gemini.js` from [GitHub Releases](https://github.com/google-gemini/gemini-cli/releases) and run it with the respective runtime.
+
+### Environment Variables
 
 The wrapper script sets:
 - `CI_NIX=1` - Triggers non-interactive mode, skips installation prompts

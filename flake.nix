@@ -9,7 +9,8 @@
   outputs = { self, nixpkgs, flake-utils }:
     let
       overlay = final: prev: {
-        gemini-cli = final.callPackage ./package.nix { runtime = "node"; };
+        gemini-cli = final.callPackage ./package.nix { runtime = "native"; };
+        gemini-cli-node = final.callPackage ./package.nix { runtime = "node"; };
         gemini-cli-bun = final.callPackage ./package.nix { runtime = "bun"; };
       };
     in
@@ -24,6 +25,7 @@
         packages = {
           default = pkgs.gemini-cli;
           gemini-cli = pkgs.gemini-cli;
+          gemini-cli-node = pkgs.gemini-cli-node;
           gemini-cli-bun = pkgs.gemini-cli-bun;
         };
 
@@ -35,6 +37,10 @@
           gemini-cli = {
             type = "app";
             program = "${pkgs.gemini-cli}/bin/gemini";
+          };
+          gemini-cli-node = {
+            type = "app";
+            program = "${pkgs.gemini-cli-node}/bin/gemini-node";
           };
           gemini-cli-bun = {
             type = "app";

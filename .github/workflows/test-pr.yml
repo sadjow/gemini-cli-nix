@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        package: [gemini-cli, gemini-cli-bun]
+        package: [gemini-cli, gemini-cli-node, gemini-cli-bun]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -32,20 +32,31 @@ jobs:
 
       - name: Verify binary exists
         run: |
-          if [ "${{ matrix.package }}" == "gemini-cli" ]; then
-            test -x ./result/bin/gemini
-          else
-            test -x ./result/bin/gemini-bun
-          fi
-
-      - name: Verify bundle exists
-        run: |
-          test -f ./result/lib/gemini.js
+          case "${{ matrix.package }}" in
+            gemini-cli)
+              test -x ./result/bin/gemini
+              test -x ./result/bin/gemini-raw
+              ;;
+            gemini-cli-node)
+              test -x ./result/bin/gemini-node
+              test -f ./result/lib/gemini.js
+              ;;
+            gemini-cli-bun)
+              test -x ./result/bin/gemini-bun
+              test -f ./result/lib/gemini.js
+              ;;
+          esac
 
       - name: Test version output
         run: |
-          if [ "${{ matrix.package }}" == "gemini-cli" ]; then
-            ./result/bin/gemini --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
-          else
-            ./result/bin/gemini-bun --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
-          fi
+          case "${{ matrix.package }}" in
+            gemini-cli)
+              ./result/bin/gemini --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
+              ;;
+            gemini-cli-node)
+              ./result/bin/gemini-node --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
+              ;;
+            gemini-cli-bun)
+              ./result/bin/gemini-bun --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
+              ;;
+          esac
