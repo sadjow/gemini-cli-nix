@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-13]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-15-intel]
         package: [gemini-cli, gemini-cli-node, gemini-cli-bun]
     runs-on: ${{ matrix.os }}
 
