@@ -6,8 +6,8 @@ readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
 readonly NC='\033[0m'
 
-readonly NPM_REGISTRY_URL="https://registry.npmjs.org"
-readonly PACKAGE_NAME="@google/gemini-cli"
+readonly GITHUB_API_URL="https://api.github.com/repos/google-gemini/gemini-cli/releases/latest"
+readonly GITHUB_RELEASE_URL="https://github.com/google-gemini/gemini-cli/releases/download"
 
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
@@ -17,25 +17,21 @@ get_current_version() {
     sed -n 's/.*version = "\([^"]*\)".*/\1/p' package.nix | head -1 || echo "unknown"
 }
 
-get_latest_version_from_npm() {
-    if command -v curl >/dev/null 2>&1; then
-        curl -s "$NPM_REGISTRY_URL/$PACKAGE_NAME/latest" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p'
-    else
-        npm view "$PACKAGE_NAME" version 2>/dev/null || {
-            log_error "Failed to fetch latest version from npm"
-            exit 1
-        }
-    fi
+get_latest_version_from_github() {
+    local response
+    response=$(curl -s "$GITHUB_API_URL")
+    echo "$response" | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p' | head -1
 }
 
-fetch_tarball_hash() {
+fetch_gemini_js_hash() {
     local version="$1"
-    local tarball_url="$NPM_REGISTRY_URL/$PACKAGE_NAME/-/gemini-cli-$version.tgz"
+    local release_url="$GITHUB_RELEASE_URL/v$version/gemini.js"
 
-    # Get hash in SRI format (sha256-...)
-    local hash=$(nix-prefetch-url --type sha256 "$tarball_url" 2>/dev/null | tail -1)
-    # Convert to SRI format
-    local sri_hash=$(nix hash to-sri --type sha256 "$hash" 2>/dev/null)
+    log_info "Fetching gemini.js from $release_url..."
+    local hash
+    hash=$(nix-prefetch-url --type sha256 "$release_url" 2>/dev/null | tail -1)
+    local sri_hash
+    sri_hash=$(nix hash to-sri --type sha256 "$hash" 2>/dev/null)
     echo "$sri_hash" | tr -d '\n'
 }
 
@@ -46,7 +42,6 @@ update_package_version() {
 
 update_package_hash() {
     local hash="$1"
-    # Update the hash attribute (SRI format)
     sed -i.bak "s|hash = \"sha256-[^\"]*\"|hash = \"$hash\"|" package.nix
 }
 
@@ -61,21 +56,22 @@ update_to_version() {
 
     update_package_version "$new_version"
 
-    log_info "Fetching tarball hash..."
-    local tarball_hash=$(fetch_tarball_hash "$new_version")
-    if [ -z "$tarball_hash" ]; then
-        log_error "Failed to fetch tarball hash"
+    log_info "Fetching gemini.js hash..."
+    local gemini_hash
+    gemini_hash=$(fetch_gemini_js_hash "$new_version")
+    if [ -z "$gemini_hash" ]; then
+        log_error "Failed to fetch gemini.js hash"
         mv package.nix.bak package.nix
         exit 1
     fi
 
-    log_info "Tarball hash: $tarball_hash"
-    update_package_hash "$tarball_hash"
+    log_info "gemini.js hash: $gemini_hash"
+    update_package_hash "$gemini_hash"
 
     cleanup_backup_files
 
     log_info "Verifying build..."
-    if nix build .#gemini-cli --option sandbox false > /dev/null 2>&1; then
+    if nix build .#gemini-cli > /dev/null 2>&1; then
         log_info "Build successful!"
         return 0
     else
@@ -94,6 +90,7 @@ ensure_in_repository_root() {
 ensure_required_tools_installed() {
     command -v nix >/dev/null 2>&1 || { log_error "nix is required but not installed."; exit 1; }
     command -v nix-prefetch-url >/dev/null 2>&1 || { log_error "nix-prefetch-url is required but not installed."; exit 1; }
+    command -v curl >/dev/null 2>&1 || { log_error "curl is required but not installed."; exit 1; }
 }
 
 print_usage() {
@@ -107,7 +104,7 @@ print_usage() {
     echo "Examples:"
     echo "  $0                    # Update to latest version"
     echo "  $0 --check            # Check if update is available"
-    echo "  $0 --version 0.25.1   # Update to specific version"
+    echo "  $0 --version 0.26.0   # Update to specific version"
 }
 
 parse_arguments() {
@@ -156,12 +153,17 @@ main() {
     ensure_in_repository_root
     ensure_required_tools_installed
 
-    local args=$(parse_arguments "$@")
-    local target_version=$(echo "$args" | cut -d'|' -f1)
-    local check_only=$(echo "$args" | cut -d'|' -f2)
+    local args
+    args=$(parse_arguments "$@")
+    local target_version
+    target_version=$(echo "$args" | cut -d'|' -f1)
+    local check_only
+    check_only=$(echo "$args" | cut -d'|' -f2)
 
-    local current_version=$(get_current_version)
-    local latest_version=$(get_latest_version_from_npm)
+    local current_version
+    current_version=$(get_current_version)
+    local latest_version
+    latest_version=$(get_latest_version_from_github)
 
     if [ -n "$target_version" ]; then
         latest_version="$target_version"

@@ -26,7 +26,6 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-            sandbox = false
 
       - name: Build ${{ matrix.package }}
         run: nix build .#${{ matrix.package }}
@@ -39,9 +38,9 @@ jobs:
             test -x ./result/bin/gemini-bun
           fi
 
-      - name: Verify module directory exists
+      - name: Verify bundle exists
         run: |
-          test -d ./result/lib/node_modules/@google/gemini-cli
+          test -f ./result/lib/gemini.js
 
       - name: Test version output
         run: |

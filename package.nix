@@ -1,44 +1,40 @@
 # Gemini CLI Package
 #
-# This package installs Gemini CLI with its own JavaScript runtime to ensure
-# it's always available regardless of project-specific Node.js versions.
+# This package installs Gemini CLI using the pre-bundled release from GitHub.
+# The bundled gemini.js is self-contained and doesn't require npm dependencies.
 
 { lib
 , stdenv
 , fetchurl
 , nodejs_22
 , bun
-, cacert
 , bash
 , runtime ? "node"
 , nodeBinName ? "gemini"
 , bunBinName ? "gemini-bun"
+, disableTelemetry ? false
 }:
 
 let
-  version = "0.25.1";
+  version = "0.26.0";
 
-  geminiCliTarball = fetchurl {
-    url = "https://registry.npmjs.org/@google/gemini-cli/-/gemini-cli-${version}.tgz";
-    hash = "sha256-3oCr5RAco4Qvv3Q7aXhu8K7baZqIyd481KnR7KuKZsk=";
+  geminiBundled = fetchurl {
+    url = "https://github.com/google-gemini/gemini-cli/releases/download/v${version}/gemini.js";
+    hash = "sha256-IOx+n39JGYmHp42ObLD30H2Lgpju6bDBQ7fHLP1oc60=";
   };
 
   runtimeConfig = {
     node = {
       pkg = nodejs_22;
-      runtimeBin = "${nodejs_22}/bin/node";
-      npmBin = "${nodejs_22}/bin/npm";
       runCmd = "${nodejs_22}/bin/node --no-warnings --enable-source-maps";
-      nativeBuildInputs = [ nodejs_22 cacert ];
+      npmBin = "${nodejs_22}/bin/npm";
       description = "Gemini CLI (Node.js) - Google AI agent in your terminal";
       binName = nodeBinName;
     };
     bun = {
       pkg = bun;
-      runtimeBin = "${bun}/bin/bun";
-      npmBin = "${bun}/bin/bun";
       runCmd = "${bun}/bin/bun run";
-      nativeBuildInputs = [ bun cacert ];
+      npmBin = "${bun}/bin/bun";
       description = "Gemini CLI (Bun) - Google AI agent in your terminal";
       binName = bunBinName;
     };
@@ -46,45 +42,45 @@ let
 
   selected = runtimeConfig.${runtime};
 in
-stdenv.mkDerivation rec {
+stdenv.mkDerivation {
   pname = if runtime == "node" then "gemini-cli" else "gemini-cli-${runtime}";
   inherit version;
 
   dontUnpack = true;
 
-  nativeBuildInputs = selected.nativeBuildInputs;
-
-  # Allow network access to fetch npm dependencies
-  __noChroot = true;
-
-  buildPhase = ''
-    export HOME=$TMPDIR
-    mkdir -p $HOME/.npm $HOME/.bun
-
-    export SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt
-    export NODE_EXTRA_CA_CERTS=$SSL_CERT_FILE
-
-    ${selected.npmBin} config set cafile $SSL_CERT_FILE
-
-    # Install gemini-cli globally with optional deps skipped
-    ${selected.npmBin} install -g --prefix=$out --omit=optional ${geminiCliTarball}
-  '';
-
   installPhase = ''
-    # Remove npm-generated wrapper (has issues)
-    rm -f $out/bin/gemini
+    runHook preInstall
 
-    mkdir -p $out/bin
-    cat > $out/bin/${selected.binName} << 'EOF'
+    mkdir -p $out/lib $out/bin
+    cp ${geminiBundled} $out/lib/gemini.js
+
+    cat > $out/bin/${selected.binName} << 'WRAPPER_EOF'
 #!${bash}/bin/bash
-export NODE_PATH="$out/lib/node_modules"
 export GEMINI_EXECUTABLE_PATH="$HOME/.local/bin/${selected.binName}"
-exec ${selected.runCmd} "$out/lib/node_modules/@google/gemini-cli/dist/index.js" "$@"
-EOF
+export CI_NIX=1
+${lib.optionalString disableTelemetry "export GEMINI_TELEMETRY_ENABLED=false"}
+
+export _GEMINI_NPM_WRAPPER="$(mktemp -d)/npm"
+cat > "$_GEMINI_NPM_WRAPPER" << 'NPM_EOF'
+#!${bash}/bin/bash
+if [[ "$1" = "update" ]] || [[ "$1" = "outdated" ]] || [[ "$1" =~ ^view ]] && [[ "$2" =~ @google/gemini-cli ]]; then
+    echo "Updates are managed through Nix. Current version: ${version}"
+    echo "To update: nix profile upgrade '.*gemini-cli.*'"
+    exit 0
+fi
+exec ${selected.npmBin} "$@"
+NPM_EOF
+chmod +x "$_GEMINI_NPM_WRAPPER"
+
+export PATH="$(dirname "$_GEMINI_NPM_WRAPPER"):$PATH"
+exec ${selected.runCmd} "$out/lib/gemini.js" "$@"
+WRAPPER_EOF
     chmod +x $out/bin/${selected.binName}
 
     substituteInPlace $out/bin/${selected.binName} \
-      --replace '$out' "$out"
+      --replace-fail '$out' "$out"
+
+    runHook postInstall
   '';
 
   meta = with lib; {

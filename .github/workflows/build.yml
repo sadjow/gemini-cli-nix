@@ -6,20 +6,19 @@ on:
     branches: [ main ]
   workflow_dispatch:
   workflow_run:
-    workflows: ["Update Claude Code Version"]
+    workflows: ["Update Gemini CLI Version"]
     types:
       - completed
     branches: [ main ]
 
 jobs:
   build:
-    # Only run if not triggered by workflow_run or if the workflow succeeded
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        variant: [claude-code, claude-code-bun]
+        variant: [gemini-cli, gemini-cli-bun]
     steps:
     - uses: actions/checkout@v4
 
@@ -35,7 +34,7 @@ jobs:
     - uses: cachix/cachix-action@v15
       if: github.ref == 'refs/heads/main'
       with:
-        name: claude-code
+        name: gemini-cli-nix
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
     - name: Build ${{ matrix.variant }}
@@ -45,12 +44,12 @@ jobs:
     - name: Push to Cachix
       if: github.ref == 'refs/heads/main'
       run: |
-        nix build .#${{ matrix.variant }} --json | jq -r '.[].outputs.out' | cachix push claude-code
+        nix build .#${{ matrix.variant }} --json | jq -r '.[].outputs.out' | cachix push gemini-cli-nix
 
     - name: Test ${{ matrix.variant }}
       run: |
-        if [ "${{ matrix.variant }}" = "claude-code-bun" ]; then
-          ./result/bin/claude-bun --version
+        if [ "${{ matrix.variant }}" = "gemini-cli-bun" ]; then
+          ./result/bin/gemini-bun --version
         else
-          ./result/bin/claude --version
+          ./result/bin/gemini --version
         fi

@@ -25,7 +25,6 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-            sandbox = false
 
       - name: Check for updates
         id: check
@@ -34,7 +33,7 @@ jobs:
             echo "update_needed=false" >> $GITHUB_OUTPUT
           else
             CURRENT_VERSION=$(sed -n 's/.*version = "\([^"]*\)".*/\1/p' package.nix | head -1)
-            LATEST_VERSION=$(npm view @google/gemini-cli version 2>/dev/null || curl -s https://registry.npmjs.org/@google/gemini-cli/latest | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')
+            LATEST_VERSION=$(curl -s https://api.github.com/repos/google-gemini/gemini-cli/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p' | head -1)
 
             echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
             echo "latest=$LATEST_VERSION" >> $GITHUB_OUTPUT
@@ -61,12 +60,12 @@ jobs:
 
             ### Changes
             - Updated `version` in `package.nix`
-            - Updated `sha256` hash for the npm tarball
+            - Updated `sha256` hash for the GitHub release bundle
             - Updated `flake.lock`
 
             ### Verification
             - Version number updated in `package.nix`
-            - Tarball hash automatically calculated and updated
+            - Bundle hash automatically calculated from GitHub release
             - Build verified during CI
             - All changes automated via update script
 

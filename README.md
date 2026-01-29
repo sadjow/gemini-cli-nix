@@ -6,11 +6,10 @@ Nix flake for [Gemini CLI](https://geminicli.com/) - Google's open-source AI age
 
 - **Always up-to-date**: Hourly automated updates via GitHub Actions
 - **Dual runtime support**: Node.js 22 LTS and Bun
-- **Isolated runtime**: Bundled Node.js independent of system version
+- **Sandbox-compatible**: Uses pre-bundled release from GitHub (no network during build)
 - **Binary caching**: Fast installs via Cachix (optional)
 - **Version pinning**: Pin to specific versions, major versions, or latest
-
-> **Note**: This package requires network access during build to fetch npm dependencies. Use `--option sandbox false` when building locally.
+- **Nix-managed updates**: npm interceptor informs users updates are managed by Nix
 
 ## Quick Start
 
@@ -80,13 +79,51 @@ nix run github:sadjow/gemini-cli-nix
 ### Specific version
 
 ```bash
-nix run github:sadjow/gemini-cli-nix?ref=v0.25.1
+nix run github:sadjow/gemini-cli-nix?ref=v0.26.0
 ```
 
 ### Major version (tracks v0.x)
 
 ```bash
 nix run github:sadjow/gemini-cli-nix?ref=v0
+```
+
+### In Flake Inputs
+
+```nix
+{
+  inputs = {
+    # Always latest (auto-updates)
+    gemini-cli.url = "github:sadjow/gemini-cli-nix";
+
+    # Pin to exact version
+    gemini-cli.url = "github:sadjow/gemini-cli-nix?ref=v0.26.0";
+
+    # Track major version (stays on v0.x)
+    gemini-cli.url = "github:sadjow/gemini-cli-nix?ref=v0";
+  };
+}
+```
+
+## Custom Binary Names
+
+You can customize binary names when building:
+
+```nix
+pkgs.gemini-cli.override { nodeBinName = "gem"; }
+pkgs.gemini-cli-bun.override { bunBinName = "gem-bun"; }
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `nodeBinName` | `gemini` | Binary name for Node.js runtime |
+| `bunBinName` | `gemini-bun` | Binary name for Bun runtime |
+| `disableTelemetry` | `false` | Disable telemetry when `true` |
+
+### Disable Telemetry
+
+```nix
+pkgs.gemini-cli.override { disableTelemetry = true; }
 ```
 
 ## Binary Cache (Cachix)
@@ -108,19 +145,74 @@ Or add to your Nix configuration:
 }
 ```
 
+## Troubleshooting
+
+### Auto-update notifications
+
+Gemini CLI may show update notifications even when installed via Nix. To disable:
+
+1. Run `/settings` in Gemini CLI
+2. Navigate to General settings
+3. Disable "Auto Update Notifications"
+
+Or add to `~/.gemini/settings.json`:
+
+```json
+{
+  "general": {
+    "enableAutoUpdateNotification": false
+  }
+}
+```
+
+### PATH issues after installation
+
+If `gemini` command is not found:
+
+```bash
+# Check if nix-profile/bin is in PATH
+echo $PATH | tr ':' '\n' | grep nix-profile
+
+# Add to ~/.bashrc or ~/.zshrc
+export PATH="$HOME/.nix-profile/bin:$PATH"
+```
+
+### macOS permission issues
+
+On macOS, create a stable symlink to avoid re-granting permissions after updates:
+
+```bash
+mkdir -p ~/.local/bin
+ln -sf $(which gemini) ~/.local/bin/gemini
+# Add ~/.local/bin to PATH
+```
+
+## Comparison with Other Installation Methods
+
+| Feature | npm global | Homebrew | This Flake |
+|---------|------------|----------|------------|
+| **Latest Version** | Manual | Delayed | Hourly checks |
+| **Runtime Options** | Per Node install | Node.js only | Node.js 22, Bun |
+| **Survives Node Switch** | Lost on switch | Always available | Always available |
+| **Binary Cache** | None | Bottles | Cachix |
+| **Declarative Config** | No | Limited | Yes |
+| **Version Pinning** | Manual | Formula version | Git tags |
+| **Reproducible** | No | Mostly | Yes |
+| **Sandbox Builds** | N/A | N/A | Yes |
+
 ## Development
 
 ### Build locally
 
 ```bash
-nix build --option sandbox false
+nix build
 ./result/bin/gemini --version
 ```
 
 ### Build Bun variant
 
 ```bash
-nix build .#gemini-cli-bun --option sandbox false
+nix build .#gemini-cli-bun
 ./result/bin/gemini-bun --version
 ```
 
@@ -156,21 +248,24 @@ gemini-cli-nix/
     ├── update-gemini-cli.yml   # Hourly updates
     ├── build.yml               # CI builds
     ├── test-pr.yml             # PR validation
-    ├── create-version-tag.yml  # Auto-tagging
-    └── flakestry-publish.yml   # Registry publish
+    └── create-version-tag.yml  # Auto-tagging
 ```
 
-## Comparison with Other Installation Methods
+## Technical Details
 
-| Method | Auto-updates | Reproducible | Isolated Runtime |
-|--------|--------------|--------------|------------------|
-| `npm install -g` | Manual | No | No |
-| This flake | Hourly | Yes | Yes |
+This package uses the pre-bundled `gemini.js` from [GitHub Releases](https://github.com/google-gemini/gemini-cli/releases) instead of fetching from npm. This provides:
+
+- **Sandbox-compatible builds** (no network access during build)
+- **Faster builds** (single file download)
+- **Simpler package** (no npm install step)
+
+The wrapper script sets:
+- `CI_NIX=1` - Triggers non-interactive mode, skips installation prompts
+- `GEMINI_TELEMETRY_ENABLED=false` - Only when `disableTelemetry = true`
 
 ## Requirements
 
 - Nix with flakes enabled
-- Node.js 20+ (bundled, not required on system)
 
 ## License
 
@@ -182,4 +277,4 @@ Gemini CLI itself is [Apache 2.0 licensed](https://github.com/google-gemini/gemi
 
 - [Gemini CLI Documentation](https://geminicli.com/docs/)
 - [Gemini CLI GitHub](https://github.com/google-gemini/gemini-cli)
-- [npm Package](https://www.npmjs.com/package/@google/gemini-cli)
+- [GitHub Releases](https://github.com/google-gemini/gemini-cli/releases)
