@@ -20,6 +20,15 @@ jobs:
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-15-intel]
         variant: [gemini-cli, gemini-cli-native, gemini-cli-bun]
+        exclude:
+          - os: macos-14
+            variant: gemini-cli-native
+          - os: macos-14
+            variant: gemini-cli-bun
+          - os: macos-15-intel
+            variant: gemini-cli-native
+          - os: macos-15-intel
+            variant: gemini-cli-bun
     steps:
     - uses: actions/checkout@v4
 

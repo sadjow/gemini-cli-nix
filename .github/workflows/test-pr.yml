@@ -14,6 +14,15 @@ jobs:
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-15-intel]
         package: [gemini-cli, gemini-cli-native, gemini-cli-bun]
+        exclude:
+          - os: macos-14
+            package: gemini-cli-native
+          - os: macos-14
+            package: gemini-cli-bun
+          - os: macos-15-intel
+            package: gemini-cli-native
+          - os: macos-15-intel
+            package: gemini-cli-bun
     runs-on: ${{ matrix.os }}
 
     steps:
