@@ -31,32 +31,13 @@ jobs:
             experimental-features = nix-command flakes
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build all variants
-        run: |
-          echo "Building gemini-cli..."
-          nix build .#gemini-cli -o result-node
-          echo "Building gemini-cli-native..."
-          nix build .#gemini-cli-native -o result-native
-          echo "Building gemini-cli-bun..."
-          nix build .#gemini-cli-bun -o result-bun
+      - name: Build gemini-cli
+        run: nix build .#gemini-cli
 
-      - name: Verify binaries exist
+      - name: Verify binary exists
         run: |
-          echo "Verifying gemini-cli..."
-          test -x ./result-node/bin/gemini
-          test -f ./result-node/lib/gemini.js
-          echo "Verifying gemini-cli-native..."
-          test -x ./result-native/bin/gemini
-          test -x ./result-native/bin/gemini-raw
-          echo "Verifying gemini-cli-bun..."
-          test -x ./result-bun/bin/gemini-bun
-          test -f ./result-bun/lib/gemini.js
+          test -x ./result/bin/gemini
+          test -f ./result/lib/gemini.js
 
       - name: Test version output
-        run: |
-          echo "Testing gemini-cli..."
-          ./result-node/bin/gemini --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
-          echo "Testing gemini-cli-native..."
-          ./result-native/bin/gemini --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
-          echo "Testing gemini-cli-bun..."
-          ./result-bun/bin/gemini-bun --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'
+        run: ./result/bin/gemini --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'

@@ -41,30 +41,12 @@ jobs:
         name: gemini-cli-nix
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
-    - name: Build all variants
-      run: |
-        echo "Building gemini-cli..."
-        nix build .#gemini-cli -o result-node
-        echo "Building gemini-cli-native..."
-        nix build .#gemini-cli-native -o result-native
-        echo "Building gemini-cli-bun..."
-        nix build .#gemini-cli-bun -o result-bun
+    - name: Build gemini-cli
+      run: nix build .#gemini-cli
 
     - name: Push to Cachix
       if: github.ref == 'refs/heads/main'
-      run: |
-        echo "Pushing gemini-cli..."
-        nix build .#gemini-cli --json | jq -r '.[].outputs.out' | cachix push gemini-cli-nix
-        echo "Pushing gemini-cli-native..."
-        nix build .#gemini-cli-native --json | jq -r '.[].outputs.out' | cachix push gemini-cli-nix
-        echo "Pushing gemini-cli-bun..."
-        nix build .#gemini-cli-bun --json | jq -r '.[].outputs.out' | cachix push gemini-cli-nix
+      run: nix build .#gemini-cli --json | jq -r '.[].outputs.out' | cachix push gemini-cli-nix
 
-    - name: Test all variants
-      run: |
-        echo "Testing gemini-cli..."
-        ./result-node/bin/gemini --version
-        echo "Testing gemini-cli-native..."
-        ./result-native/bin/gemini --version
-        echo "Testing gemini-cli-bun..."
-        ./result-bun/bin/gemini-bun --version
+    - name: Test gemini-cli
+      run: ./result/bin/gemini --version
