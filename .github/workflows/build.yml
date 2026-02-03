@@ -11,6 +11,10 @@ on:
       - completed
     branches: [ main ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
@@ -18,17 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-15-intel]
-        variant: [gemini-cli, gemini-cli-native, gemini-cli-bun]
-        exclude:
-          - os: macos-14
-            variant: gemini-cli-native
-          - os: macos-14
-            variant: gemini-cli-bun
-          - os: macos-15-intel
-            variant: gemini-cli-native
-          - os: macos-15-intel
-            variant: gemini-cli-bun
+        os: [ubuntu-latest, macos-latest]
     steps:
     - uses: actions/checkout@v4
 
@@ -47,25 +41,30 @@ jobs:
         name: gemini-cli-nix
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
-    - name: Build ${{ matrix.variant }}
+    - name: Build all variants
       run: |
-        nix build .#${{ matrix.variant }}
+        echo "Building gemini-cli..."
+        nix build .#gemini-cli -o result-node
+        echo "Building gemini-cli-native..."
+        nix build .#gemini-cli-native -o result-native
+        echo "Building gemini-cli-bun..."
+        nix build .#gemini-cli-bun -o result-bun
 
     - name: Push to Cachix
       if: github.ref == 'refs/heads/main'
       run: |
-        nix build .#${{ matrix.variant }} --json | jq -r '.[].outputs.out' | cachix push gemini-cli-nix
+        echo "Pushing gemini-cli..."
+        nix build .#gemini-cli --json | jq -r '.[].outputs.out' | cachix push gemini-cli-nix
+        echo "Pushing gemini-cli-native..."
+        nix build .#gemini-cli-native --json | jq -r '.[].outputs.out' | cachix push gemini-cli-nix
+        echo "Pushing gemini-cli-bun..."
+        nix build .#gemini-cli-bun --json | jq -r '.[].outputs.out' | cachix push gemini-cli-nix
 
-    - name: Test ${{ matrix.variant }}
+    - name: Test all variants
       run: |
-        case "${{ matrix.variant }}" in
-          gemini-cli)
-            ./result/bin/gemini --version
-            ;;
-          gemini-cli-native)
-            ./result/bin/gemini --version
-            ;;
-          gemini-cli-bun)
-            ./result/bin/gemini-bun --version
-            ;;
-        esac
+        echo "Testing gemini-cli..."
+        ./result-node/bin/gemini --version
+        echo "Testing gemini-cli-native..."
+        ./result-native/bin/gemini --version
+        echo "Testing gemini-cli-bun..."
+        ./result-bun/bin/gemini-bun --version
