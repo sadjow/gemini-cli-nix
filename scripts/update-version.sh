@@ -27,7 +27,7 @@ fetch_gemini_js_hash() {
     local version="$1"
     local release_url="$GITHUB_RELEASE_URL/v$version/gemini.js"
 
-    log_info "Fetching gemini.js from $release_url..."
+    log_info "Fetching gemini.js from $release_url..." >&2
     local hash
     hash=$(nix-prefetch-url --type sha256 "$release_url" 2>/dev/null | tail -1)
     local sri_hash
