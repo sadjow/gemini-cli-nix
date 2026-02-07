@@ -9,18 +9,46 @@ readonly NC='\033[0m'
 readonly GITHUB_API_URL="https://api.github.com/repos/google-gemini/gemini-cli/releases/latest"
 readonly GITHUB_RELEASE_URL="https://github.com/google-gemini/gemini-cli/releases/download"
 
+readonly MAX_RETRIES=3
+readonly RETRY_BASE_DELAY=2
+
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+retry() {
+    local max_attempts="$1"
+    local base_delay="$2"
+    shift 2
+
+    for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+        local result
+        result=$("$@") && [ -n "$result" ] && { echo "$result"; return 0; }
+
+        if ((attempt < max_attempts)); then
+            local delay=$((base_delay ** attempt))
+            log_warn "Attempt $attempt/$max_attempts failed, retrying in ${delay}s..." >&2
+            sleep "$delay"
+        fi
+    done
+
+    return 1
+}
 
 get_current_version() {
     sed -n 's/.*version = "\([^"]*\)".*/\1/p' package.nix | head -1 || echo "unknown"
 }
 
+fetch_latest_version() {
+    curl -sf --max-time 10 "$GITHUB_API_URL" | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p' | head -1
+}
+
 get_latest_version_from_github() {
-    local response
-    response=$(curl -s "$GITHUB_API_URL")
-    echo "$response" | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p' | head -1
+    retry "$MAX_RETRIES" "$RETRY_BASE_DELAY" fetch_latest_version
+}
+
+prefetch_url() {
+    nix-prefetch-url --type sha256 "$1" 2>/dev/null | tail -1
 }
 
 fetch_gemini_js_hash() {
@@ -29,7 +57,7 @@ fetch_gemini_js_hash() {
 
     log_info "Fetching gemini.js from $release_url..." >&2
     local hash
-    hash=$(nix-prefetch-url --type sha256 "$release_url" 2>/dev/null | tail -1)
+    hash=$(retry "$MAX_RETRIES" "$RETRY_BASE_DELAY" prefetch_url "$release_url")
     local sri_hash
     sri_hash=$(nix hash to-sri --type sha256 "$hash" 2>/dev/null)
     echo "$sri_hash" | tr -d '\n'
@@ -162,11 +190,16 @@ main() {
 
     local current_version
     current_version=$(get_current_version)
-    local latest_version
-    latest_version=$(get_latest_version_from_github)
 
+    local latest_version
     if [ -n "$target_version" ]; then
         latest_version="$target_version"
+    else
+        latest_version=$(get_latest_version_from_github) || true
+        if [ -z "$latest_version" ]; then
+            log_error "Failed to fetch latest version from GitHub after $MAX_RETRIES attempts"
+            exit 1
+        fi
     fi
 
     log_info "Current version: $current_version"
