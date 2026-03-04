@@ -13,11 +13,11 @@
 }:
 
 let
-  version = "0.31.0";
+  version = "0.32.0";
 
   geminiBundled = fetchurl {
     url = "https://github.com/google-gemini/gemini-cli/releases/download/v${version}/gemini.js";
-    hash = "sha256-b/xQN42G06Iu82MOKqLb8ybuBfvdtx/dlefI1YfXVeQ=";
+    hash = "sha256-DJNP33uObWMJs/AVzgHPGPtpYBmnfv5CaFnZy5vAGxo=";
   };
 in
 stdenv.mkDerivation {
