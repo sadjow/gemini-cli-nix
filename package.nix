@@ -1,11 +1,11 @@
 # Gemini CLI Package
 #
-# This package installs Gemini CLI using the official bundled JS from Google's releases,
-# running via Node.js 22 (the officially supported runtime).
+# This package builds Gemini CLI from the upstream tagged source and lockfile,
+# avoiding the incomplete single-file GitHub release asset.
 
 { lib
-, stdenv
-, fetchurl
+, buildNpmPackage
+, fetchFromGitHub
 , nodejs_22
 , bash
 , binName ? "gemini"
@@ -14,23 +14,41 @@
 
 let
   version = "0.35.3";
+  srcHash = "sha256-tAv34dHEf9uK6A/d+zkYYB7FVPviRnjYrP5E23b9OXw=";
+  npmDepsHash = "sha256-gJJ2UD6m5vwUwYoYU8L4bjefrTX9CMWRYz4YTHi6Q/M=";
 
-  geminiBundled = fetchurl {
-    url = "https://github.com/google-gemini/gemini-cli/releases/download/v${version}/gemini.js";
-    hash = "sha256-I94yM/wkzCCnJhshvc2CUN00xIXJcSKUjK/EWDAbNR8=";
+  src = fetchFromGitHub {
+    owner = "google-gemini";
+    repo = "gemini-cli";
+    rev = "v${version}";
+    hash = srcHash;
   };
 in
-stdenv.mkDerivation {
+buildNpmPackage {
   pname = "gemini-cli";
-  inherit version;
+  inherit version src npmDepsHash;
 
-  dontUnpack = true;
+  dontNpmPrune = true;
+
+  buildPhase = ''
+    runHook preBuild
+
+    npm run build --workspace @google/gemini-cli-core
+    npm run build --workspace @google/gemini-cli
+
+    runHook postBuild
+  '';
 
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/lib $out/bin
-    cp ${geminiBundled} $out/lib/gemini.js
+    mkdir -p $out/lib/node_modules/@google $out/bin
+
+    cp -rL node_modules $out/lib/
+    rm -rf $out/lib/node_modules/@google/gemini-cli
+    rm -rf $out/lib/node_modules/@google/gemini-cli-core
+    cp -r packages/cli $out/lib/node_modules/@google/gemini-cli
+    cp -r packages/core $out/lib/node_modules/@google/gemini-cli-core
 
     cat > $out/bin/${binName} << 'WRAPPER_EOF'
 #!${bash}/bin/bash
@@ -49,8 +67,8 @@ exec ${nodejs_22}/bin/npm "$@"
 NPM_EOF
 chmod +x "$_GEMINI_NPM_WRAPPER"
 
-export PATH="$(dirname "$_GEMINI_NPM_WRAPPER"):$PATH"
-exec ${nodejs_22}/bin/node --no-warnings --enable-source-maps "$out/lib/gemini.js" "$@"
+export PATH="$(dirname "$_GEMINI_NPM_WRAPPER"):$out/lib/node_modules/.bin:$PATH"
+exec ${nodejs_22}/bin/node --no-warnings --enable-source-maps "$out/lib/node_modules/@google/gemini-cli/dist/index.js" "$@"
 WRAPPER_EOF
     chmod +x $out/bin/${binName}
 

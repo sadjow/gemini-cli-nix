@@ -37,7 +37,6 @@ jobs:
       - name: Verify binary exists
         run: |
           test -x ./result/bin/gemini
-          test -f ./result/lib/gemini.js
 
       - name: Test version output
         run: ./result/bin/gemini --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+'

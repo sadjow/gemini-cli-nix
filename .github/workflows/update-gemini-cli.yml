@@ -60,12 +60,14 @@ jobs:
 
             ### Changes
             - Updated `version` in `package.nix`
-            - Updated `sha256` hash for the GitHub release bundle
+            - Updated the upstream source hash in `package.nix`
+            - Updated `npmDepsHash` from the upstream lockfile
             - Updated `flake.lock`
 
             ### Verification
             - Version number updated in `package.nix`
-            - Bundle hash automatically calculated from GitHub release
+            - Source and dependency hashes automatically calculated from upstream release metadata
+            - Build and runtime verified before PR creation
             - Build verified during CI
             - All changes automated via update script
 

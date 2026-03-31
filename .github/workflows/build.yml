@@ -44,9 +44,9 @@ jobs:
     - name: Build gemini-cli
       run: nix build .#gemini-cli
 
+    - name: Test gemini-cli
+      run: ./result/bin/gemini --version
+
     - name: Push to Cachix
       if: github.ref == 'refs/heads/main'
       run: nix build .#gemini-cli --json | jq -r '.[].outputs.out' | cachix push gemini-cli-nix
-
-    - name: Test gemini-cli
-      run: ./result/bin/gemini --version
