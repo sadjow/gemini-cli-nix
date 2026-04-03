@@ -17,6 +17,10 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+escape_sed_replacement() {
+    printf '%s' "$1" | sed -e 's/[&|\\]/\\&/g'
+}
+
 retry() {
     local max_attempts="$1"
     local base_delay="$2"
@@ -101,11 +105,18 @@ update_package_metadata() {
     local version="$1"
     local source_hash="$2"
     local npm_deps_hash="$3"
+    local escaped_version
+    local escaped_source_hash
+    local escaped_npm_deps_hash
+
+    escaped_version=$(escape_sed_replacement "$version")
+    escaped_source_hash=$(escape_sed_replacement "$source_hash")
+    escaped_npm_deps_hash=$(escape_sed_replacement "$npm_deps_hash")
 
     sed -i.bak \
-        -e "s/version = \".*\"/version = \"$version\"/" \
-        -e "s/srcHash = \"sha256-[^\"]*\"/srcHash = \"$source_hash\"/" \
-        -e "s/npmDepsHash = \"sha256-[^\"]*\"/npmDepsHash = \"$npm_deps_hash\"/" \
+        -e "s|version = \"[^\"]*\"|version = \"$escaped_version\"|" \
+        -e "s|srcHash = \"sha256-[^\"]*\"|srcHash = \"$escaped_source_hash\"|" \
+        -e "s|npmDepsHash = \"sha256-[^\"]*\"|npmDepsHash = \"$escaped_npm_deps_hash\"|" \
         package.nix
 }
 

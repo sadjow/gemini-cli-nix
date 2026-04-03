@@ -99,11 +99,17 @@ jobs:
           echo "## Update Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ steps.check.outputs.update_needed }}" == "true" ]; then
+          if [ "${{ steps.create-pr.outputs.pull-request-number }}" != "" ]; then
+            echo "- **Current Version:** ${{ steps.check.outputs.current }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Latest Version:** ${{ steps.check.outputs.latest }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Pull Request:** #${{ steps.create-pr.outputs.pull-request-number }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Pull request created for version update!" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.check.outputs.update_needed }}" == "true" ]; then
             echo "- **Current Version:** ${{ steps.check.outputs.current }}" >> $GITHUB_STEP_SUMMARY
             echo "- **Latest Version:** ${{ steps.check.outputs.latest }}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Pull request created for version update!" >> $GITHUB_STEP_SUMMARY
+            echo "Update detected, but the workflow failed before creating a pull request." >> $GITHUB_STEP_SUMMARY
           else
             CURRENT_VERSION=$(sed -n 's/.*version = "\([^"]*\)".*/\1/p' package.nix | head -1)
             echo "- **Current Version:** $CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
