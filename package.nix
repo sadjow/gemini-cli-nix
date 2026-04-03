@@ -15,7 +15,7 @@
 let
   version = "0.35.3";
   srcHash = "sha256-tAv34dHEf9uK6A/d+zkYYB7FVPviRnjYrP5E23b9OXw=";
-  npmDepsHash = "sha256-gJJ2UD6m5vwUwYoYU8L4bjefrTX9CMWRYz4YTHi6Q/M=";
+  npmDepsHash = "sha256-44LpXQQU9GsHk4ze+zVOakHaCzJTlMen3exyw4rHX60=";
 
   src = fetchFromGitHub {
     owner = "google-gemini";
@@ -28,28 +28,41 @@ buildNpmPackage {
   pname = "gemini-cli";
   inherit version src npmDepsHash;
 
-  dontNpmPrune = true;
+  nodejs = nodejs_22;
+  npmDepsFetcherVersion = 2;
+  npmWorkspace = "packages/cli";
+  npmInstallFlags = [ "--omit=optional" ];
 
-  buildPhase = ''
-    runHook preBuild
-
-    npm run build --workspace @google/gemini-cli-core
-    npm run build --workspace @google/gemini-cli
-
-    runHook postBuild
+  preBuild = ''
+    npm run generate
+    npm run build --workspace=packages/core
+    npm run build --workspace=packages/devtools
   '';
 
-  installPhase = ''
-    runHook preInstall
+  postInstall = ''
+    local pkgRoot="$out/lib/node_modules/@google/gemini-cli"
+    local nm="$pkgRoot/node_modules"
 
-    mkdir -p $out/lib/node_modules/@google $out/bin
+    rm -rf "$nm"
+    mkdir -p "$nm"
+    cp -rL node_modules/. "$nm"/
+    if [ -d packages/cli/node_modules ]; then
+      cp -rL packages/cli/node_modules/. "$nm"/
+    fi
 
-    cp -rL node_modules $out/lib/
-    rm -rf $out/lib/node_modules/@google/gemini-cli
-    rm -rf $out/lib/node_modules/@google/gemini-cli-core
-    cp -r packages/cli $out/lib/node_modules/@google/gemini-cli
-    cp -r packages/core $out/lib/node_modules/@google/gemini-cli-core
+    mkdir -p "$nm/@google"
+    rm -rf "$nm/@google/gemini-cli"
+    rm -rf "$nm/@google/gemini-cli-core"
+    rm -rf "$nm/@google/gemini-cli-devtools"
+    cp -rL packages/core "$nm/@google/gemini-cli-core"
+    cp -rL packages/devtools "$nm/@google/gemini-cli-devtools"
 
+    find "$nm" -type l -lname '*/packages/*' -delete
+    if [ -d "$nm/.bin" ]; then
+      find "$nm/.bin" -xtype l -delete
+    fi
+
+    rm -f $out/bin/gemini
     cat > $out/bin/${binName} << 'WRAPPER_EOF'
 #!${bash}/bin/bash
 export GEMINI_EXECUTABLE_PATH="$HOME/.local/bin/${binName}"
@@ -67,15 +80,13 @@ exec ${nodejs_22}/bin/npm "$@"
 NPM_EOF
 chmod +x "$_GEMINI_NPM_WRAPPER"
 
-export PATH="$(dirname "$_GEMINI_NPM_WRAPPER"):$out/lib/node_modules/.bin:$PATH"
+export PATH="$(dirname "$_GEMINI_NPM_WRAPPER"):$out/lib/node_modules/@google/gemini-cli/node_modules/.bin:$PATH"
 exec ${nodejs_22}/bin/node --no-warnings --enable-source-maps "$out/lib/node_modules/@google/gemini-cli/dist/index.js" "$@"
 WRAPPER_EOF
     chmod +x $out/bin/${binName}
 
     substituteInPlace $out/bin/${binName} \
       --replace-fail '$out' "$out"
-
-    runHook postInstall
   '';
 
   meta = with lib; {

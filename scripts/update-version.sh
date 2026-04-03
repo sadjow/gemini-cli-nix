@@ -11,6 +11,7 @@ readonly GITHUB_SOURCE_URL="https://codeload.github.com/google-gemini/gemini-cli
 
 readonly MAX_RETRIES=3
 readonly RETRY_BASE_DELAY=2
+readonly NPM_DEPS_FETCHER_VERSION=2
 
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
@@ -67,9 +68,9 @@ prefetch_npm_deps_from_lockfile() {
     local lockfile="$1"
 
     if command -v prefetch-npm-deps >/dev/null 2>&1; then
-        prefetch-npm-deps "$lockfile" 2>/dev/null | tail -1
+        NPM_FETCHER_VERSION="$NPM_DEPS_FETCHER_VERSION" prefetch-npm-deps "$lockfile" 2>/dev/null | tail -1
     else
-        nix run nixpkgs#prefetch-npm-deps -- "$lockfile" 2>/dev/null | tail -1
+        NPM_FETCHER_VERSION="$NPM_DEPS_FETCHER_VERSION" nix run nixpkgs#prefetch-npm-deps -- "$lockfile" 2>/dev/null | tail -1
     fi
 }
 

@@ -215,7 +215,7 @@ gemini-cli-nix/
 
 ## Technical Details
 
-This package uses the pre-bundled `gemini.js` from [GitHub Releases](https://github.com/google-gemini/gemini-cli/releases) and runs it with Node.js 22, matching Google's official distribution method.
+This package builds Gemini CLI from the upstream tagged source and npm lockfile with Nix's `buildNpmPackage`, then runs the packaged CLI with Node.js 22. The derivation materializes the workspace runtime dependency on `@google/gemini-cli-core`, which makes the package robust against upstream release artifact layout changes.
 
 ### Environment Variables
 
