@@ -31,7 +31,8 @@ buildNpmPackage {
   nodejs = nodejs_22;
   npmDepsFetcherVersion = 2;
   npmWorkspace = "packages/cli";
-  npmInstallFlags = [ "--omit=optional" "--ignore-scripts" ];
+  npmInstallFlags = [ "--ignore-scripts" ];
+  npmRebuildFlags = [ "--ignore-scripts" ];
 
   preBuild = ''
     npm run generate
