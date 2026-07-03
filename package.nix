@@ -33,6 +33,14 @@ buildNpmPackage {
   npmWorkspace = "packages/cli";
   npmInstallFlags = [ "--omit=optional" "--ignore-scripts" ];
 
+  # Guarded so it stays a no-op inside fetchNpmDeps, which lacks node and only
+  # reads the unmodified lockfile (keeping npmDepsHash stable).
+  postPatch = ''
+    if command -v node >/dev/null 2>&1; then
+      node ${./scripts/sync-manifest-pins.cjs}
+    fi
+  '';
+
   preBuild = ''
     npm run generate
     npm run build --workspace=packages/core
