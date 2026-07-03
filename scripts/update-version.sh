@@ -126,10 +126,23 @@ cleanup_backup_files() {
 
 verify_package() {
     log_info "Verifying build..."
-    nix build .#gemini-cli > /dev/null 2>&1 || return 1
+    local build_log
+    build_log=$(mktemp)
+    if ! nix build .#gemini-cli --print-build-logs > "$build_log" 2>&1; then
+        log_error "nix build failed, last 40 lines:"
+        tail -n 40 "$build_log" >&2
+        rm -f "$build_log"
+        return 1
+    fi
+    rm -f "$build_log"
 
     log_info "Verifying runtime..."
-    ./result/bin/gemini --version | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' > /dev/null 2>&1
+    local reported_version
+    reported_version=$(./result/bin/gemini --version 2>&1 | tail -n 1)
+    if ! echo "$reported_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+        log_error "Runtime check failed, gemini --version reported: $reported_version"
+        return 1
+    fi
 }
 
 update_to_version() {
