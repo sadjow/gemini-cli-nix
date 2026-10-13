@@ -13,9 +13,9 @@
 }:
 
 let
-  version = "0.63.0";
-  srcHash = "sha256-pR6xiqLJuzj/Mt1H3UqfPdmmiOEmaKitkjLsgNdeBHg=";
-  npmDepsHash = "sha256-CdgG4351GvtvCk/Fa4TqORA3mHSf+JEyfOHLq960rNQ=";
+  version = "0.64.0";
+  srcHash = "sha256-SwVlNHAcb/gknNNAz6KRdf2HErzxjaABTw6FZxirdmE=";
+  npmDepsHash = "sha256-xdMHz+Pr1hQQbOtj9mST+ux/EQOpD9NNtky9Lzwv2XE=";
 
   src = fetchFromGitHub {
     owner = "google-gemini";
