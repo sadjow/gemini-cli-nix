@@ -10,25 +10,41 @@ permissions:
   contents: write
 
 jobs:
-  tag:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+  create-tag:
+    # The branch filter above matches the head branch of the triggering run, so a
+    # fork pull request opened from a branch named main would also arrive here.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event != 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
+    # Only eligible tag jobs share the queue; failed builds must not displace them.
+    concurrency:
+      group: create-version-tag
+      cancel-in-progress: false
+      # Preserve pending releases instead of replacing the previous pending job.
+      queue: max
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Get version from package.nix
+      - name: Extract version from package.nix
         id: version
         run: |
           VERSION=$(sed -n 's/.*version = "\([^"]*\)".*/\1/p' package.nix | head -1)
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::package.nix does not declare a release version: '$VERSION'"
+            exit 1
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
 
       - name: Check if tag exists
-        id: check
+        id: check-tag
         run: |
           if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -36,32 +52,38 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create version tag
-        if: steps.check.outputs.exists == 'false'
+      - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push version tag
+        if: steps.check-tag.outputs.exists == 'false'
+        run: |
           git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}"
           git push origin "v${{ steps.version.outputs.version }}"
 
-      - name: Update latest tag
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -fa latest -m "Latest release"
-          git push origin latest --force
-
-      - name: Update major version tag
+      - name: Extract major version
+        id: major
         run: |
           MAJOR=$(echo "${{ steps.version.outputs.version }}" | cut -d. -f1)
-          git tag -fa "v$MAJOR" -m "Latest v$MAJOR release"
-          git push origin "v$MAJOR" --force
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+
+      - name: Update moving tags
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: bash scripts/update-moving-tags.sh "$VERSION"
 
       - name: Summary
         run: |
-          echo "## Version Tags" >> $GITHUB_STEP_SUMMARY
+          echo "## Tag Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** v${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Latest:** updated" >> $GITHUB_STEP_SUMMARY
-          MAJOR=$(echo "${{ steps.version.outputs.version }}" | cut -d. -f1)
-          echo "- **Major:** v$MAJOR updated" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | Points To |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-----------|" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check-tag.outputs.exists }}" == "false" ]; then
+            echo "| v${{ steps.version.outputs.version }} | $(git rev-parse --short HEAD) |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| v${{ steps.version.outputs.version }} | (already exists) |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "| v${{ steps.major.outputs.major }} | v${{ steps.version.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| latest | v${{ steps.version.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
