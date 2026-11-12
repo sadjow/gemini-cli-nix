@@ -205,11 +205,15 @@ gemini-cli-nix/
 ├── package.nix        # Package derivation
 ├── scripts/
 │   ├── update-version.sh       # Version updater
+│   ├── update-moving-tags.sh   # Moves latest and vMAJOR in one atomic push
 │   └── setup-github-permissions.sh
+├── tests/
+│   └── test-update-moving-tags.sh
 └── .github/workflows/
     ├── update-gemini-cli.yml   # Hourly updates
     ├── build.yml               # CI builds
     ├── test-pr.yml             # PR validation
+    ├── test-tagging.yml        # Tag update tests
     └── create-version-tag.yml  # Auto-tagging
 ```
 
