@@ -1,0 +1,27 @@
+name: Test Version Updates
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/test-update-version.yml'
+      - 'scripts/update-version.sh'
+      - 'tests/test-update-version.sh'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/test-update-version.yml'
+      - 'scripts/update-version.sh'
+      - 'tests/test-update-version.sh'
+
+permissions:
+  contents: read
+
+jobs:
+  test-update-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Check shell syntax
+        run: bash -n scripts/update-version.sh tests/test-update-version.sh
+      - name: Test the update check
+        run: bash tests/test-update-version.sh
