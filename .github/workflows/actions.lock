@@ -14,6 +14,8 @@ workflows:
         - 'cachix/install-nix-action@v31.11.5'
     '.github/workflows/test-tagging.yml':
         - 'actions/checkout@v7.0.1'
+    '.github/workflows/test-update-version.yml':
+        - 'actions/checkout@v7.0.1'
     '.github/workflows/update-gemini-cli.yml':
         - 'actions/checkout@v7.0.1'
         - 'cachix/install-nix-action@v31.11.5'

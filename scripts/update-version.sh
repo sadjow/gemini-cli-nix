@@ -13,6 +13,10 @@ readonly MAX_RETRIES=3
 readonly RETRY_BASE_DELAY=2
 readonly NPM_DEPS_FETCHER_VERSION=2
 
+# Any failure exits with 1, so --check reports an available update with a
+# status that a failed lookup cannot produce.
+readonly EXIT_UPDATE_AVAILABLE=2
+
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
@@ -45,7 +49,14 @@ get_current_version() {
 }
 
 fetch_latest_version() {
-    curl -sf --max-time 10 "$GITHUB_API_URL" | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p' | head -1
+    local request=(curl --fail --silent --show-error --max-time 10)
+    # GitHub limits anonymous API requests per IP address, and hosted CI runners
+    # share addresses, so an anonymous lookup there is rejected intermittently.
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        request+=(--header "Authorization: Bearer $GITHUB_TOKEN")
+    fi
+
+    "${request[@]}" "$GITHUB_API_URL" | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p' | head -1
 }
 
 get_latest_version_from_github() {
@@ -201,16 +212,23 @@ print_usage() {
     echo "  --check           Only check for updates, don't apply"
     echo "  --help            Show this help message"
     echo ""
+    echo "Exit status of --check:"
+    echo "  0                  Already up to date"
+    echo "  1                  The check failed"
+    echo "  $EXIT_UPDATE_AVAILABLE                  An update is available"
+    echo ""
+    echo "Environment:"
+    echo "  GITHUB_TOKEN       Optional token that authenticates the latest release lookup"
+    echo ""
     echo "Examples:"
     echo "  $0                    # Update to latest version"
     echo "  $0 --check            # Check if update is available"
     echo "  $0 --version 0.26.0   # Update to specific version"
 }
 
+# Sets the caller's target_version and check_only. It must run in the caller's
+# shell, because inside a command substitution --help would end only the subshell.
 parse_arguments() {
-    local target_version=""
-    local check_only=false
-
     while [[ $# -gt 0 ]]; do
         case $1 in
             --version)
@@ -232,8 +250,6 @@ parse_arguments() {
                 ;;
         esac
     done
-
-    echo "$target_version|$check_only"
 }
 
 update_flake_lock() {
@@ -250,15 +266,12 @@ show_changes() {
 }
 
 main() {
+    local target_version=""
+    local check_only=false
+    parse_arguments "$@"
+
     ensure_in_repository_root
     ensure_required_tools_installed
-
-    local args
-    args=$(parse_arguments "$@")
-    local target_version
-    target_version=$(echo "$args" | cut -d'|' -f1)
-    local check_only
-    check_only=$(echo "$args" | cut -d'|' -f2)
 
     local current_version
     current_version=$(get_current_version)
@@ -284,7 +297,7 @@ main() {
 
     if [ "$check_only" = true ]; then
         log_info "Update available: $current_version -> $latest_version"
-        exit 1
+        exit "$EXIT_UPDATE_AVAILABLE"
     fi
 
     update_to_version "$latest_version"

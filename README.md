@@ -197,6 +197,21 @@ nix build
 ./scripts/update-version.sh --check
 ```
 
+The check exits with `0` when the packaged version is the latest release, with `2` when a newer release is available, and with `1` when the check fails.
+
+The latest release is looked up through the GitHub API. Without a token, GitHub allows 60 lookups per hour for each IP address; set `GITHUB_TOKEN` to authenticate the lookup.
+
+### Run the script tests
+
+```bash
+bash tests/test-update-version.sh
+bash tests/test-update-moving-tags.sh
+```
+
+### Set up automated updates
+
+The hourly update workflow needs repository settings and a repository secret. [.github/REPOSITORY_SETTINGS.md](.github/REPOSITORY_SETTINGS.md) lists them.
+
 ## Project Structure
 
 ```
@@ -206,14 +221,16 @@ gemini-cli-nix/
 ├── scripts/
 │   ├── update-version.sh       # Version updater
 │   ├── update-moving-tags.sh   # Moves latest and vMAJOR in one atomic push
-│   └── setup-github-permissions.sh
+│   └── setup-github-permissions.sh  # Prints the repository setup steps
 ├── tests/
+│   ├── test-update-version.sh
 │   └── test-update-moving-tags.sh
 └── .github/workflows/
     ├── update-gemini-cli.yml   # Hourly updates
     ├── build.yml               # CI builds
     ├── test-pr.yml             # PR validation
     ├── test-tagging.yml        # Tag update tests
+    ├── test-update-version.yml # Version update tests
     └── create-version-tag.yml  # Auto-tagging
 ```
 
