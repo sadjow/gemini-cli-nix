@@ -210,7 +210,7 @@ bash tests/test-update-moving-tags.sh
 
 ### Set up automated updates
 
-The hourly update workflow needs a GitHub App, a repository variable, repository secrets, and repository settings. [.github/REPOSITORY_SETTINGS.md](.github/REPOSITORY_SETTINGS.md) lists the steps.
+The hourly update workflow needs repository settings and a repository secret. [.github/REPOSITORY_SETTINGS.md](.github/REPOSITORY_SETTINGS.md) lists them.
 
 ## Project Structure
 
